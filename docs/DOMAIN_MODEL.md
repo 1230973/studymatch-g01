@@ -127,27 +127,27 @@ classDiagram
     }
 
     %% Relações Académicas
-    Student "1" --> "1" DegreeCourse : inscrito em
-    DegreeCourse "1" *-- "1..*" CourseUnit : composto por
-    Student "1" *-- "0..*" Enrollment : possui
-    CourseUnit "1" <-- "0..*" Enrollment : referente a
-    Enrollment "1" *-- "1..*" AcademicAttempt : regista
+    Student "1" --> "1" DegreeCourse 
+    DegreeCourse "1" *-- "1..*" CourseUnit 
+    Student "1" *-- "0..*" Enrollment 
+    CourseUnit "1" <-- "0..*" Enrollment 
+    Enrollment "1" *-- "1..*" AcademicAttempt 
 
     %% Relações de Competências
-    CourseUnit "1" o-- "0..*" CompetencyWeight : confere
-    Competency "1" <-- "0..*" CompetencyWeight : quantifica
-    Student "1" *-- "0..*" StudentCompetencyProfile : consolidado em
-    Competency "1" <-- "0..*" StudentCompetencyProfile : relativo a
+    CourseUnit "1" o-- "0..*" CompetencyWeight 
+    Competency "1" <-- "0..*" CompetencyWeight 
+    Student "1" *-- "0..*" StudentCompetencyProfile 
+    Competency "1" <-- "0..*" StudentCompetencyProfile 
 
     %% Relações de Contexto de Agrupamento
-    CourseUnit "1" *-- "0..*" GroupingContext : define
-    GroupingContext "1" *-- "1..*" GroupingCriteria : parametrizado por
+    CourseUnit "1" *-- "0..*" GroupingContext 
+    GroupingContext "1" *-- "1..*" GroupingCriteria 
 
     %% Relações de Cold Start
-    ScenarioDilemma "1" *-- "2..*" DilemmaOption : disponibiliza
-    Student "1" *-- "0..1" ProvisionalProfile : recebe (Cold Start)
-    DilemmaOption "1..*" ..> ProvisionalProfile : infere
+    ScenarioDilemma "1" *-- "2..*" DilemmaOption
+    Student "1" *-- "0..1" ProvisionalProfile 
+    DilemmaOption "1..*" ..> ProvisionalProfile 
 
     %% Relações Operacionais e Ritmo
-    Student "1" *-- "0..*" TimeAvailabilitySlot : declara
-    Student "1" *-- "0..1" WorkPacingProfile : adota
+    Student "1" *-- "0..*" TimeAvailabilitySlot 
+    Student "1" *-- "0..1" WorkPacingProfile
