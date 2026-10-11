@@ -1,0 +1,33 @@
+### Confirmar API e acesso ao PostgreSQL
+GET http://localhost:8080/api/health
+
+### Listar cursos
+GET http://localhost:8080/api/degree-courses
+
+### Criar curso (não repetir se já iniciou o perfil demo)
+POST http://localhost:8080/api/degree-courses
+Content-Type: application/json
+
+{
+  "code": "EI",
+  "name": "Engenharia Informatica",
+  "totalCredits": 180
+}
+
+### Criar estudante
+POST http://localhost:8080/api/students
+Content-Type: application/json
+
+{
+  "studentNumber": "2026002",
+  "name": "Maria Exemplo",
+  "institutionalEmail": "maria@example.org",
+  "enrolledYear": 1,
+  "degreeCourseCode": "EI"
+}
+
+### Listar estudantes
+GET http://localhost:8080/api/students
+
+### Consultar um estudante
+GET http://localhost:8080/api/students/2026002

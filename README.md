@@ -65,3 +65,79 @@ Nesta fase, estas áreas são apenas informativas.
 
 A ligação à API Spring Boot e à base de dados PostgreSQL será desenvolvida na Issue #7 (Vertical Slice).
 
+
+
+## Backend — Spring Boot + PostgreSQL
+
+O backend do StudyMatch foi desenvolvido em Java, utilizando Spring Boot, Maven e PostgreSQL.
+
+### Requisitos
+
+- Java JDK 17 ou superior
+- Apache Maven
+- Docker Desktop
+
+### Iniciar a base de dados
+
+Na pasta principal do projeto, executar:
+
+```powershell
+cd backend
+docker compose up -d
+```
+
+Verificar o estado do PostgreSQL:
+
+```powershell
+docker compose ps
+```
+
+### Executar o backend
+
+Na pasta `backend`, executar:
+
+```powershell
+mvn spring-boot:run "-Dspring-boot.run.profiles=demo"
+```
+
+O backend ficará disponível em:
+
+http://localhost:8080
+
+### Testar a API
+
+Verificar a ligação à base de dados:
+
+http://localhost:8080/api/health
+
+Consultar estudantes:
+
+http://localhost:8080/api/students
+
+Consultar cursos:
+
+http://localhost:8080/api/degree-courses
+
+### Executar testes automatizados
+
+Na pasta `backend`, executar:
+
+```powershell
+mvn clean test
+```
+
+### Parar a base de dados
+
+```powershell
+docker compose down
+```
+
+Este comando não elimina os dados armazenados no volume Docker.
+
+### Estado atual
+
+O backend permite consultar e registar estudantes e cursos através de uma API REST ligada ao PostgreSQL.
+
+A integração com o frontend React será realizada na Issue #7 (Vertical Slice).
+
+Para mais informações, consultar [Documentação do Backend](backend/README.md).
