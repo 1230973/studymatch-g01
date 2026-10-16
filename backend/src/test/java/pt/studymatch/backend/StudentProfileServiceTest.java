@@ -28,7 +28,8 @@ import pt.studymatch.backend.repository.AcademicRecordRepository;
 import pt.studymatch.backend.repository.CompetencyRepository;
 import pt.studymatch.backend.repository.StudentRepository;
 import pt.studymatch.backend.service.StudentProfileService;
-
+import pt.studymatch.backend.repository.ColdStartAnswerRepository;
+import pt.studymatch.backend.model.ColdStartAnswer;
 
 
 
@@ -45,6 +46,9 @@ class StudentProfileServiceTest {
 
     @Mock
     private CompetencyRepository competencyRepository;
+
+    @Mock
+    private ColdStartAnswerRepository coldStartAnswerRepository;
 
     @InjectMocks
     private StudentProfileService studentProfileService;
@@ -64,7 +68,7 @@ class StudentProfileServiceTest {
         Competency competency =
                 org.mockito.Mockito.mock(Competency.class);
 
-        when(competency.getId()).thenReturn(1L);
+        
         when(competency.getCode()).thenReturn("PROGRAMMING");
         when(competency.getName()).thenReturn("Programacao");
 
@@ -178,7 +182,7 @@ class StudentProfileServiceTest {
         // Preparar a competencia
         Competency competency = org.mockito.Mockito.mock(Competency.class);
 
-        when(competency.getId()).thenReturn(1L);
+
         when(competency.getCode()).thenReturn("PROGRAMMING");
         when(competency.getName()).thenReturn("Programacao");
 
@@ -245,6 +249,80 @@ class StudentProfileServiceTest {
                 exception.getStatusCode()
         );
         }
+
+        
+        @Test
+        void shouldPrioritizeAcademicGradeOverColdStart() {
+
+        // Preparar o estudante
+        Student student = org.mockito.Mockito.mock(Student.class);
+
+        when(student.getStudentNumber()).thenReturn("2026002");
+
+        when(studentRepository.findByStudentNumberIgnoreCase("2026002"))
+                .thenReturn(java.util.Optional.of(student));
+
+        // Preparar a competencia
+        Competency competency = new Competency(
+                "PROGRAMMING",
+                "Programacao"
+        );
+
+        when(competencyRepository.findAll(Sort.by("code")))
+                .thenReturn(List.of(competency));
+
+        // Preparar a unidade curricular
+        CourseUnit courseUnit = new CourseUnit(
+                "PROG",
+                "Programacao"
+        );
+
+        courseUnit.setCompetency(competency);
+
+        // Nota academica: 16 valores
+        AcademicRecord academicRecord =
+                org.mockito.Mockito.mock(AcademicRecord.class);
+
+        when(academicRecord.getCourseUnit())
+                .thenReturn(courseUnit);
+
+        when(academicRecord.getGrade())
+                .thenReturn(new BigDecimal("16"));
+
+        when(academicRecordRepository.findByStudentOrderByIdAsc(student))
+                .thenReturn(List.of(academicRecord));
+
+        // Resposta Cold Start: 5/5 = 100 pontos
+        ColdStartAnswer answer = new ColdStartAnswer(
+                student,
+                competency,
+                5
+        );
+
+        when(coldStartAnswerRepository.findByStudent(student))
+                .thenReturn(List.of(answer));
+
+        // Calcular o perfil
+        StudentProfileResponse profile =
+                studentProfileService.getStudentProfile("2026002");
+
+        // A nota academica deve ter prioridade
+        assertEquals(
+                80.0,
+                profile.competencies().get(0).score()
+        );
+
+        assertEquals(
+                "ACADEMIC",
+                profile.competencies().get(0).source()
+        );
+
+        assertEquals(
+                1,
+                profile.competencies().get(0).evidenceCount()
+        );
+        }
+
 
 
 }
