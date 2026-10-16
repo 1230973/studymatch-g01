@@ -6,10 +6,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
+import pt.studymatch.backend.model.Competency;
 import pt.studymatch.backend.model.CourseUnit;
 import pt.studymatch.backend.model.DegreeCourse;
 import pt.studymatch.backend.model.Student;
 
+import pt.studymatch.backend.repository.CompetencyRepository;
 import pt.studymatch.backend.repository.CourseUnitRepository;
 import pt.studymatch.backend.repository.DegreeCourseRepository;
 import pt.studymatch.backend.repository.StudentRepository;
@@ -22,7 +24,8 @@ public class DemoDataConfig {
     CommandLineRunner demoData(
             DegreeCourseRepository courses,
             StudentRepository students,
-            CourseUnitRepository courseUnits) {
+            CourseUnitRepository courseUnits,
+            CompetencyRepository competencies) {
 
         return args -> {
 
@@ -47,29 +50,48 @@ public class DemoDataConfig {
                 ));
             }
 
-            // Criar a unidade curricular Programacao
-            if (!courseUnits.existsByCode("PROG")) {
-                courseUnits.save(new CourseUnit(
-                        "PROG",
-                        "Programacao"
-                ));
-            }
+            // Criar as competencias
+            Competency programming = competencies.findByCode("PROGRAMMING")
+                    .orElseGet(() -> competencies.save(
+                            new Competency("PROGRAMMING", "Programacao")
+                    ));
 
-            // Criar a unidade curricular Bases de Dados
-            if (!courseUnits.existsByCode("BD")) {
-                courseUnits.save(new CourseUnit(
-                        "BD",
-                        "Bases de Dados"
-                ));
-            }
+            Competency databases = competencies.findByCode("DATABASES")
+                    .orElseGet(() -> competencies.save(
+                            new Competency("DATABASES", "Bases de Dados")
+                    ));
 
-            // Criar a unidade curricular Engenharia de Software
-            if (!courseUnits.existsByCode("ES")) {
-                courseUnits.save(new CourseUnit(
-                        "ES",
-                        "Engenharia de Software"
-                ));
-            }
+            Competency softwareEngineering = competencies.findByCode("SOFTWARE_ENGINEERING")
+                    .orElseGet(() -> competencies.save(
+                            new Competency("SOFTWARE_ENGINEERING", "Engenharia de Software")
+                    ));
+
+            // Criar ou atualizar a unidade curricular Programacao
+            CourseUnit prog = courseUnits.findByCode("PROG")
+                    .orElseGet(() -> courseUnits.save(
+                            new CourseUnit("PROG", "Programacao")
+                    ));
+
+            prog.setCompetency(programming);
+            courseUnits.save(prog);
+
+            // Criar ou atualizar a unidade curricular Bases de Dados
+            CourseUnit bd = courseUnits.findByCode("BD")
+                    .orElseGet(() -> courseUnits.save(
+                            new CourseUnit("BD", "Bases de Dados")
+                    ));
+
+            bd.setCompetency(databases);
+            courseUnits.save(bd);
+
+            // Criar ou atualizar a unidade curricular Engenharia de Software
+            CourseUnit es = courseUnits.findByCode("ES")
+                    .orElseGet(() -> courseUnits.save(
+                            new CourseUnit("ES", "Engenharia de Software")
+                    ));
+
+            es.setCompetency(softwareEngineering);
+            courseUnits.save(es);
         };
     }
 }
