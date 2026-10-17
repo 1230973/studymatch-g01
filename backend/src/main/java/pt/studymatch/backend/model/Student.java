@@ -50,4 +50,9 @@ public class Student {
     public String getInstitutionalEmail() { return institutionalEmail; }
     public Integer getEnrolledYear() { return enrolledYear; }
     public DegreeCourse getDegreeCourse() { return degreeCourse; }
+
+    public void setName(String name) { this.name = name; }
+    public void setInstitutionalEmail(String institutionalEmail) { this.institutionalEmail = institutionalEmail; }
+    public void setEnrolledYear(Integer enrolledYear) { this.enrolledYear = enrolledYear; }
+    public void setDegreeCourse(DegreeCourse degreeCourse) { this.degreeCourse = degreeCourse; }
 }

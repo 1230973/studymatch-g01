@@ -2,17 +2,21 @@ package pt.studymatch.backend.controller;
 
 import java.net.URI;
 import java.util.List;
-import jakarta.validation.Valid;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import jakarta.validation.Valid;
 import pt.studymatch.backend.dto.CreateStudentRequest;
 import pt.studymatch.backend.dto.StudentResponse;
+import pt.studymatch.backend.dto.UpdateStudentRequest;
 import pt.studymatch.backend.service.StudentService;
 
 @RestController
@@ -36,5 +40,12 @@ public class StudentController {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{studentNumber}").buildAndExpand(student.studentNumber()).toUri();
         return ResponseEntity.created(location).body(student);
+    }
+
+    @PutMapping("/{studentNumber}")
+    public StudentResponse update(
+            @PathVariable String studentNumber,
+            @Valid @RequestBody UpdateStudentRequest request) {
+        return service.update(studentNumber, request);
     }
 }
