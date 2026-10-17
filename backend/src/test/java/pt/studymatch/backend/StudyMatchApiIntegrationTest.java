@@ -8,13 +8,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import pt.studymatch.backend.repository.DegreeCourseRepository;
-import pt.studymatch.backend.repository.StudentRepository;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import pt.studymatch.backend.repository.DegreeCourseRepository;
+import pt.studymatch.backend.repository.StudentRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc

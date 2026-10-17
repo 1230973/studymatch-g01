@@ -2,10 +2,13 @@ package pt.studymatch.backend.service;
 
 import java.util.List;
 import java.util.Locale;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import pt.studymatch.backend.dto.CreateStudentRequest;
 import pt.studymatch.backend.dto.StudentResponse;
+import pt.studymatch.backend.dto.UpdateStudentRequest;
 import pt.studymatch.backend.exception.DuplicateResourceException;
 import pt.studymatch.backend.exception.ResourceNotFoundException;
 import pt.studymatch.backend.model.DegreeCourse;
@@ -54,6 +57,29 @@ public class StudentService {
         Student student = students.save(new Student(number, request.name().trim(), email,
                 request.enrolledYear(), course));
         return toResponse(student);
+    }
+
+    @Transactional
+    public StudentResponse update(String studentNumber, UpdateStudentRequest request) {
+        Student student = students.findByStudentNumberIgnoreCase(studentNumber.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Estudante nao encontrado."));
+
+        String email = request.institutionalEmail().trim().toLowerCase(Locale.ROOT);
+        if (!student.getInstitutionalEmail().equalsIgnoreCase(email)
+                && students.existsByInstitutionalEmailIgnoreCase(email)) {
+            throw new DuplicateResourceException("Ja existe um estudante com esse email.");
+        }
+
+        String courseCode = request.degreeCourseCode().trim();
+        DegreeCourse course = courses.findByCodeIgnoreCase(courseCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Curso nao encontrado. Regista primeiro o curso."));
+
+        student.setName(request.name().trim());
+        student.setInstitutionalEmail(email);
+        student.setEnrolledYear(request.enrolledYear());
+        student.setDegreeCourse(course);
+
+        return toResponse(students.save(student));
     }
 
     private StudentResponse toResponse(Student student) {

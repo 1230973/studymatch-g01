@@ -1,4 +1,3 @@
-
 #root {
   width: 100%;
   min-height: 100vh;
@@ -30,7 +29,7 @@
 
 .container {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1150px;
   margin: 0 auto;
   padding: 35px 20px;
   flex: 1;
@@ -39,8 +38,8 @@
 .welcome {
   background: white;
   border-radius: 12px;
-  padding: 30px;
-  margin-bottom: 30px;
+  padding: 25px 30px;
+  margin-bottom: 25px;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
 }
 
@@ -51,112 +50,79 @@
 
 .welcome p {
   color: #475569;
-  line-height: 1.7;
-}
-
-.features h2 {
-  color: #173b70;
-  margin-bottom: 20px;
-}
-
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-}
-
-.card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 25px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-}
-
-.card h3 {
-  color: #2563eb;
-  margin-top: 0;
-}
-
-.card p {
-  color: #475569;
   line-height: 1.6;
   margin-bottom: 0;
 }
 
-.status {
-  margin-top: 35px;
-  background: #eff6ff;
-  border-left: 4px solid #2563eb;
-  border-radius: 8px;
-  padding: 25px;
-}
-
-.status h2 {
-  color: #173b70;
-  margin-top: 0;
-}
-
-.status p {
-  color: #475569;
-}
-
-.footer {
-  background: #173b70;
-  color: white;
-  text-align: center;
-  padding: 20px;
-}
-
-.footer p {
-  margin: 0;
-}
-
-
-@media (max-width: 600px) {
-  .header h1 {
-    font-size: 28px;
-  }
-
-  .container {
-    padding: 20px 15px;
-  }
-
-  .welcome,
-  .card,
-  .status {
-    padding: 20px;
-  }
-}
-
-/* Lista de estudantes */
-
 .students-section,
-.register-section {
+.register-section,
+.student-details-section {
   background: white;
   border-radius: 12px;
   padding: 30px;
-  margin-top: 30px;
+  margin-top: 25px;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
 }
 
-
-.students-section h2,
-.register-section h2 {
-  color: #173b70;
-  margin-top: 0;
+.section-header,
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
+.students-section h2,
+.register-section h2,
+.student-details-section h2 {
+  color: #173b70;
+  margin: 0;
+}
+
+/* Barra de Pesquisa e Filtros */
+.filters-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  background: #f8fafc;
+  padding: 18px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: bold;
+  color: #334155;
+}
+
+.filter-group input,
+.filter-group select,
+.compact-form input,
+.compact-form select {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  color: #1e293b;
+}
+
+/* Cartões de Estudantes */
 .students-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 20px;
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .student-card {
@@ -164,6 +130,14 @@
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.student-card.selected-card {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
 }
 
 .student-card h3 {
@@ -173,11 +147,221 @@
 
 .student-card p {
   color: #475569;
-  margin: 8px 0;
+  margin: 6px 0;
   overflow-wrap: anywhere;
 }
 
-/* Formulario de registo */
+.select-student-btn {
+  margin-top: 14px;
+  background: #173b70;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.select-student-btn:hover {
+  background: #2563eb;
+}
+
+/* Painel de Detalhes do Estudante */
+.student-details-section {
+  border: 2px solid #2563eb;
+}
+
+.close-button {
+  background: #64748b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.close-button:hover {
+  background: #475569;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  gap: 22px;
+  margin-top: 15px;
+}
+
+.details-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.details-panel h3 {
+  color: #173b70;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.panel-hint {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+/* Competências */
+.competencies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.competency-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.competency-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.badge-academic {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-cold_start {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.badge-unknown {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #2563eb;
+  transition: width 0.3s ease;
+}
+
+.competency-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
+}
+
+/* Cold Start */
+.cold-start-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cold-start-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cold-start-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.cold-start-controls select {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.cold-start-controls button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.cold-start-controls button:hover {
+  background: #1d4ed8;
+}
+
+/* Tabela de Histórico Académico */
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+  background: white;
+  font-size: 14px;
+}
+
+.records-table th,
+.records-table td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.records-table th {
+  background: #eff6ff;
+  color: #173b70;
+}
+
+/* Formulários */
+.compact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.compact-form h4 {
+  margin: 6px 0 2px;
+  color: #173b70;
+}
+
+.compact-form label {
+  font-size: 13px;
+  font-weight: bold;
+  color: #334155;
+}
 
 .student-form {
   display: flex;
@@ -201,12 +385,8 @@
   color: #1e293b;
 }
 
-.student-form input:focus {
-  outline: 2px solid #2563eb;
-  outline-offset: 1px;
-}
-
 .student-form button,
+.compact-form button,
 .refresh-button {
   background: #2563eb;
   color: white;
@@ -219,21 +399,17 @@
 }
 
 .student-form button:hover,
+.compact-form button:hover,
 .refresh-button:hover {
   background: #1d4ed8;
 }
 
 .student-form button:disabled,
+.compact-form button:disabled,
 .refresh-button:disabled {
   background: #94a3b8;
   cursor: not-allowed;
 }
-
-.refresh-button {
-  margin-bottom: 15px;
-}
-
-/* Mensagens */
 
 .error-message {
   background: #fef2f2;
@@ -251,14 +427,37 @@
   margin-top: 15px;
 }
 
-@media (max-width: 600px) {
-  .students-section,
-  .register-section {
-    padding: 20px;
-  }
+.status {
+  margin-top: 35px;
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  padding: 25px;
+}
 
-  .students-list {
+.status h2 {
+  color: #173b70;
+  margin-top: 0;
+}
+
+.status p {
+  color: #475569;
+  margin: 6px 0;
+}
+
+.footer {
+  background: #173b70;
+  color: white;
+  text-align: center;
+  padding: 20px;
+}
+
+.footer p {
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .details-grid {
     grid-template-columns: 1fr;
   }
 }
-
