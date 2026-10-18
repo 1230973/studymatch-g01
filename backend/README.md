@@ -1,99 +1,171 @@
-# StudyMatch — Backend (Sprint 1 + Sprint 2, Issue #13)
+# StudyMatch — Backend (Sprints 1 e 2)
 
-Backend do projeto **StudyMatch — Os Mestres do Java**, desenvolvido em **Java (JDK 17 ou superior)**, **Spring Boot 3.5.16**, **Maven** e **PostgreSQL**.
+Backend do projeto **StudyMatch — Os Mestres do Java**, desenvolvido em **Java (JDK 17 ou superior)**, **Spring Boot 3.5.16**, **Maven**, **Spring Data JPA** e **PostgreSQL**.
 
-No **Sprint 1**, foi criada a base executável da API REST para cursos e estudantes e integrada com o frontend React (Issue #7).
+No **Sprint 1**, foi criada a base full-stack da aplicação: API REST para cursos e estudantes, persistência e comunicação com o frontend React (Issue #7). No **Sprint 2**, foram integradas a gestão do histórico académico (Issue #13), o cálculo do perfil de competências (Issue #15), a estratégia *Cold Start* (Issue #17) e a edição e visualização dos dados no frontend. As funcionalidades do Sprint 2 foram testadas através da API e da interface React.
 
-No **Sprint 2**, a **Issue #13 — Implementar modelo e API do histórico académico** acrescenta unidades curriculares, registo e consulta de classificações, validações e testes automatizados. **O Sprint 2 ainda não está concluído**: a edição de estudantes, o cálculo do perfil de competências e o Cold Start pertencem a outras tarefas ou fases de integração.
+> A **formação automática de grupos** não faz parte do âmbito do Sprint 2 e não está implementada nesta versão.
 
 ## 1. Requisitos
 
-- JDK 17 ou superior (`java -version`).
-- Apache Maven (`mvn -version`).
-- Docker Desktop com Docker Compose (recomendado), **ou** PostgreSQL instalado localmente.
-- Para utilizar o frontend, Node.js e npm (ver `../README.md`).
+- Java JDK 17 ou superior (`java -version`).
+- Apache Maven disponível no `PATH` (`mvn -version`).
+- Docker Desktop com Docker Compose, ou uma instância PostgreSQL local configurada.
+- Para utilizar a aplicação completa: Node.js e npm (ver [`../README.md`](../README.md)).
 
-## 2. Iniciar a base de dados
+## 2. Iniciar a base de dados PostgreSQL
 
-Abrir um terminal **na pasta `studymatch-g01/backend`** e executar:
+Abrir um terminal na pasta `studymatch-g01/backend`:
 
 ```powershell
 docker compose up -d
 docker compose ps
 ```
 
-Aguardar até o contentor `studymatch-postgres` apresentar o estado **`Up (healthy)`**.
+Aguardar que o contentor PostgreSQL do StudyMatch apresente o estado **healthy**. Na configuração local, o PostgreSQL é disponibilizado em `localhost:5432`.
 
-A configuração de desenvolvimento cria a base de dados `studymatch` em `localhost:5432`, com o utilizador `studymatch` e a palavra-passe `studymatch_dev` (**apenas para desenvolvimento local**).
+| Definição de desenvolvimento | Valor |
+| --- | --- |
+| Base de dados | `studymatch` |
+| Utilizador | `studymatch` |
+| Palavra-passe | `studymatch_dev` |
+| Porta PostgreSQL | `5432` |
 
-Se a porta `5432` estiver ocupada, pode ajustar-se o mapeamento no ficheiro `compose.yaml` (por exemplo, `5433:5432`) e configurar `DB_URL=jdbc:postgresql://localhost:5433/studymatch`.
+Estes valores são **exclusivos do ambiente local de demonstração**; não devem ser utilizados como credenciais de produção.
 
-Para parar os contentores **sem apagar os dados**:
+Se a porta `5432` estiver ocupada por outra instância de PostgreSQL, verificar primeiro qual o contentor em execução. Se necessário, ajustar o mapeamento de portas no ficheiro Compose e atualizar a variável `DB_URL`.
+
+Para parar a base de dados sem eliminar os registos:
 
 ```powershell
 docker compose down
 ```
 
-**Não executar `docker compose down -v` se quiseres preservar os dados de teste**, pois essa opção remove também os volumes geridos pelo Compose.
-
-Sem Docker, é necessário criar a base de dados no PostgreSQL local e configurar `DB_URL`, `DB_USER` e `DB_PASSWORD`.
+**Não usar `docker compose down -v`** quando pretender conservar os dados, uma vez que a opção `-v` elimina os volumes geridos pelo Compose.
 
 ## 3. Executar o backend
 
-No terminal, dentro da pasta `backend/`:
-
-```powershell
-mvn spring-boot:run
-```
-
-A API fica disponível em **http://localhost:8080**.
-
-Para iniciar com os **dados de demonstração**, usar:
+Dentro da pasta `backend/`, iniciar o Spring Boot com os dados de demonstração:
 
 ```powershell
 mvn spring-boot:run "-Dspring-boot.run.profiles=demo"
 ```
 
-O perfil `demo` cria os registos apenas quando ainda não existem:
+Em alternativa, sem o perfil de demonstração:
+
+```powershell
+mvn spring-boot:run
+```
+
+A API fica disponível em **http://localhost:8080**. Para verificar o estado da aplicação e da ligação à base de dados, abrir:
+
+`http://localhost:8080/api/health`
+
+Manter o terminal aberto enquanto a API estiver em utilização. Se a porta `8080` estiver ocupada, verificar se já existe outra instância do backend antes de iniciar uma segunda.
+
+### Dados de demonstração
+
+No perfil `demo`, a configuração `DemoDataConfig.java` prepara os dados necessários aos cenários de teste, sem duplicar os registos que já existam:
 
 - Curso `EI` — Engenharia Informática.
 - Estudante `2026001` — Estudante Exemplo.
-- Unidade curricular `PROG` — Programacao.
-- Unidade curricular `BD` — Bases de Dados.
-- Unidade curricular `ES` — Engenharia de Software.
+- Unidades curriculares `PROG` (Programação), `BD` (Bases de Dados) e `ES` (Engenharia de Software).
+- Competências `PROGRAMMING`, `DATABASES` e `SOFTWARE_ENGINEERING`, associadas às respetivas unidades curriculares.
 
-Estes dados são inseridos pelo ficheiro `config/DemoDataConfig.java`. A configuração de desenvolvimento utiliza Hibernate com `ddl-auto: update` para atualizar o esquema da base de dados; **não se trata de um mecanismo de migrações de produção**.
+As classificações e respostas ao questionário não são valores fixos: dependem dos registos guardados em cada base de dados local.
 
-Manter o terminal do Spring Boot aberto durante os testes. Se a porta `8080` estiver ocupada, confirmar primeiro se já existe outra instância do backend a executar, em vez de iniciar uma segunda.
+A configuração de desenvolvimento utiliza atualização do esquema através do Hibernate (`ddl-auto: update`). **Isto não substitui migrações de base de dados para produção.**
 
 ## 4. Endpoints REST
 
 ### Sprint 1 — Cursos e estudantes
 
 | Método | Endpoint | Descrição |
-|---|---|---|
-| `GET` | `/api/health` | Estado da API e ligação à base de dados |
+| --- | --- | --- |
+| `GET` | `/api/health` | Estado da API e da ligação à base de dados |
 | `GET` | `/api/degree-courses` | Listar cursos |
-| `POST` | `/api/degree-courses` | Criar curso (`code`, `name`, `totalCredits`) |
+| `POST` | `/api/degree-courses` | Criar curso |
 | `GET` | `/api/students` | Listar estudantes |
 | `GET` | `/api/students/{studentNumber}` | Consultar um estudante |
-| `POST` | `/api/students` | Registar estudante num curso existente |
+| `POST` | `/api/students` | Registar um estudante |
 
-No registo de estudantes, o campo JSON que identifica o curso é **`degreeCourseCode`**.
+O pedido de registo de estudante utiliza `degreeCourseCode` para identificar o curso existente.
 
-### Sprint 2 — Histórico académico (Issue #13)
+### Sprint 2 — Gestão de estudantes e histórico académico
 
 | Método | Endpoint | Descrição |
-|---|---|---|
+| --- | --- | --- |
+| `PUT` | `/api/students/{studentNumber}` | Atualizar os dados de um estudante |
 | `GET` | `/api/course-units` | Listar unidades curriculares |
-| `GET` | `/api/students/{studentNumber}/academic-records` | Consultar o histórico de um estudante |
-| `POST` | `/api/students/{studentNumber}/academic-records` | Registar uma classificação de um estudante |
+| `GET` | `/api/students/{studentNumber}/academic-records` | Consultar classificações do estudante |
+| `POST` | `/api/students/{studentNumber}/academic-records` | Registar uma nova classificação |
 
-O `GET /api/course-units` devolve as unidades curriculares persistidas. Nesta fase, o repositório disponibiliza as três cadeiras de exemplo através do perfil `demo`; **não foi implementado um endpoint de criação de unidades curriculares**.
+### Sprint 2 — Competências e perfil académico
 
-### Exemplo — Registar uma classificação
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/competencies` | Listar as competências disponíveis |
+| `GET` | `/api/students/{studentNumber}/profile` | Consultar o perfil calculado do estudante |
 
-Com a base de dados operacional e o backend iniciado no perfil `demo`, executar num **novo terminal PowerShell**:
+### Sprint 2 — Questionário Cold Start
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/cold-start/questions` | Consultar as perguntas e a escala de resposta |
+| `GET` | `/api/students/{studentNumber}/cold-start` | Consultar as respostas do estudante |
+| `POST` | `/api/students/{studentNumber}/cold-start` | Guardar ou atualizar uma resposta |
+
+**Nota:** a pesquisa e os filtros por nome, número, curso e ano estão implementados na interface React. A listagem de estudantes é disponibilizada pela API; não é necessário supor que existem endpoints dedicados para cada filtro.
+
+## 5. Modelo de dados e organização
+
+As principais entidades persistentes são:
+
+| Entidade | Responsabilidade |
+| --- | --- |
+| `DegreeCourse` | Curso superior e respetivos dados |
+| `Student` | Identificação, contacto, ano e curso do estudante |
+| `CourseUnit` | Unidade curricular e competência principal associada |
+| `AcademicRecord` | Classificação, unidade curricular, estudante, ano letivo e semestre |
+| `Competency` | Código e nome de uma competência |
+| `ColdStartAnswer` | Resposta de autoavaliação de um estudante a uma competência |
+
+O perfil é **calculado** a partir dos dados persistidos, em vez de depender de um valor estático guardado para cada competência.
+
+Estrutura principal do backend:
+
+```text
+backend/
+├── docs/          # Documentação técnica do perfil e do Cold Start
+├── src/main/java/pt/studymatch/backend/
+│   ├── config/    # Configurações e dados de demonstração
+│   ├── controller/# Endpoints REST
+│   ├── dto/       # Pedidos e respostas JSON
+│   ├── exception/ # Tratamento de exceções
+│   ├── model/     # Entidades JPA
+│   ├── repository/# Acesso à base de dados
+│   └── service/   # Regras de negócio
+└── src/test/java/pt/studymatch/backend/ # Testes automatizados
+```
+
+## 6. Histórico académico — Issue #13
+
+Cada registo académico associa um estudante a uma unidade curricular e contém os campos `grade`, `academicYear` e `semester`.
+
+Ao criar um registo, o `AcademicRecordService` aplica as seguintes regras:
+
+- Todos os campos do pedido são obrigatórios.
+- A classificação tem de estar entre **0 e 20**, inclusive.
+- O semestre tem de ser **1 ou 2**.
+- O ano letivo tem de respeitar o formato `AAAA/AAAA` (por exemplo, `2025/2026`). A validação verifica o formato, não se os anos são consecutivos.
+- O estudante e a unidade curricular têm de existir.
+- O código da unidade curricular é normalizado para maiúsculas antes da pesquisa.
+
+Uma classificação inválida devolve **HTTP 400 Bad Request**. Um estudante ou unidade curricular inexistente origina **HTTP 404 Not Found**.
+
+### Exemplo: registar uma classificação
+
+Com o backend em execução, abrir outro terminal PowerShell:
 
 ```powershell
 $body = @{
@@ -105,151 +177,164 @@ $body = @{
 
 Invoke-RestMethod `
     -Uri "http://localhost:8080/api/students/2026001/academic-records" `
-    -Method POST `
+    -Method Post `
     -ContentType "application/json" `
     -Body $body
 ```
 
-Uma criação válida devolve **HTTP `201 Created`**, com uma resposta semelhante a:
+Uma criação bem-sucedida devolve **HTTP 201 Created**. **Este POST insere um registo novo**: repeti-lo poderá adicionar mais uma classificação e alterar a média calculada.
 
-```json
-{
-  "id": 1,
-  "courseUnitCode": "PROG",
-  "courseUnitName": "Programacao",
-  "grade": 16,
-  "academicYear": "2025/2026",
-  "semester": 1
-}
-```
+Para consultar o histórico:
 
-O identificador pode ser diferente. Este pedido é um **teste manual**, não código a acrescentar aos ficheiros Java.
+`http://localhost:8080/api/students/2026001/academic-records`
 
-### Exemplo — Consultar o histórico
+## 7. Competências e cálculo do perfil — Issue #15
 
-No navegador, abrir:
+Nesta versão foram definidas três competências iniciais:
 
-http://localhost:8080/api/students/2026001/academic-records
+| Unidade curricular | Competência |
+| --- | --- |
+| `PROG` | `PROGRAMMING` |
+| `BD` | `DATABASES` |
+| `ES` | `SOFTWARE_ENGINEERING` |
 
-Ou executar no PowerShell:
+Cada unidade curricular contribui para uma competência principal. Para cada competência com classificações académicas, a pontuação é calculada por:
+
+**Pontuação académica = média aritmética das classificações associadas × 5**
+
+A escala final vai de **0 a 100**. Por exemplo, uma nota de 16 valores corresponde a 80 pontos. Duas notas de 12 e 18 correspondem a uma média de 15 e a 75 pontos. Todas as classificações existentes para essa competência têm o mesmo peso na versão atual.
+
+Quando não existe nenhuma classificação, a pontuação académica não é inventada. O perfil é recalculado a cada consulta, pelo que novas notas afetam a resposta seguinte.
+
+O endpoint do perfil é:
+
+`GET /api/students/{studentNumber}/profile`
+
+A resposta contém `studentNumber` e uma lista `competencies`, cujos elementos incluem:
+
+- `code` e `name` — identificação da competência.
+- `score` — pontuação de 0 a 100, ou `null` quando desconhecida.
+- `evidenceCount` — quantidade de registos **académicos** utilizados.
+- `source` — origem da pontuação (`ACADEMIC`, `COLD_START` ou `UNKNOWN`).
+
+## 8. Cold Start — Issue #17
+
+O Cold Start permite construir um perfil inicial para estudantes sem notas académicas, através de **autoavaliação numa escala de 1 a 5**. As perguntas são obtidas em:
+
+`GET /api/cold-start/questions`
+
+A pontuação de autoavaliação é calculada por:
+
+**Pontuação Cold Start = (resposta − 1) × 25**
+
+| Resposta | Pontuação |
+| --- | --- |
+| 1 | 0 |
+| 2 | 25 |
+| 3 | 50 |
+| 4 | 75 |
+| 5 | 100 |
+
+Cada estudante pode ter **uma resposta por competência**. Ao enviar uma nova resposta à mesma competência, o registo existente é atualizado em vez de duplicado.
+
+### Regra de prioridade das evidências
+
+O sistema escolhe a origem de cada competência pela seguinte ordem:
+
+1. **`ACADEMIC`** — se existem notas para a competência, utiliza a média académica × 5.
+2. **`COLD_START`** — se não existem notas, mas existe autoavaliação, utiliza `(rating − 1) × 25`.
+3. **`UNKNOWN`** — se não existem notas nem autoavaliação, devolve `score: null`.
+
+Uma competência baseada apenas em autoavaliação apresenta `evidenceCount: 0`, porque esse campo conta **registos académicos**, não respostas ao questionário.
+
+Exemplo: um estudante responde 4/5 em Programação e recebe 75 pontos (`COLD_START`). Mais tarde, obtém 14 valores a Programação e o perfil passa a 70 pontos (`ACADEMIC`). A resposta Cold Start continua guardada, mas a evidência académica prevalece.
+
+### Exemplo: guardar uma resposta Cold Start
 
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/students/2026001/academic-records"
+$body = @{
+    competencyCode = "DATABASES"
+    rating = 3
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+    -Uri "http://localhost:8080/api/students/2026001/cold-start" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body $body
 ```
 
-O endpoint devolve uma lista JSON com os registos académicos do estudante. **Não é necessário criar novamente a nota para a consultar.**
+O valor `3` corresponde a `initialScore: 50`. Para consultar as respostas guardadas:
 
-### Outros pedidos de verificação
+`GET /api/students/2026001/cold-start`
 
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/health"
-Invoke-RestMethod -Uri "http://localhost:8080/api/students"
-Invoke-RestMethod -Uri "http://localhost:8080/api/degree-courses"
-Invoke-RestMethod -Uri "http://localhost:8080/api/course-units"
-```
+Respostas fora do intervalo **1 a 5** são rejeitadas com **HTTP 400**.
 
-## 5. Validações da Issue #13
+## 9. Testes automatizados e build
 
-O `AcademicRecordService` aplica as seguintes regras ao registar uma classificação:
-
-- Todos os campos do pedido são obrigatórios.
-- A nota deve estar entre **0 e 20**, inclusive.
-- O semestre deve ser **1 ou 2**.
-- O ano letivo deve respeitar o formato `AAAA/AAAA` (por exemplo, `2025/2026`). Esta validação verifica **o formato**, não se o segundo ano é consecutivo ao primeiro.
-- O estudante indicado no URL tem de existir.
-- A unidade curricular indicada em `courseUnitCode` tem de existir; o código é convertido para maiúsculas antes da pesquisa.
-
-Os pedidos inválidos são rejeitados com **HTTP `400 Bad Request`**; estudantes ou unidades curriculares inexistentes originam **HTTP `404 Not Found`**. As validações de duplicação já existentes para estudantes e cursos mantêm o comportamento anterior (`409 Conflict`, quando aplicável).
-
-**Teste manual realizado:** foi registada uma nota de `16` na unidade curricular `PROG`; uma tentativa de registar a nota `25` recebeu `400 Bad Request` e não acrescentou um novo registo. Após reiniciar o backend, a nota válida continuou acessível, demonstrando a persistência no PostgreSQL.
-
-## 6. Testes automatizados e build
-
-Executar estes comandos **na pasta `backend/`**:
+Na pasta `backend/`, executar:
 
 ```powershell
 mvn clean test
 mvn clean package
 ```
 
-O projeto contém:
+Os testes utilizam **JUnit 5** e **Mockito**, além dos testes de integração existentes. Entre as classes de teste estão:
 
-- `StudyMatchApiIntegrationTest.java` — testes existentes da API do Sprint 1.
-- `AcademicRecordServiceTest.java` — testes unitários JUnit 5 e Mockito para o registo académico: criação válida, nota superior a 20, nota negativa e condições-limite (0 e 20).
+- `StudyMatchApiIntegrationTest.java` — testes da API.
+- `AcademicRecordServiceTest.java` — criação de registos, classificações inválidas e limites 0 e 20.
+- `StudentProfileServiceTest.java` — cálculo com uma nota, média de várias notas, dados ausentes, estudante inexistente e prioridade académica.
+- `ColdStartServiceTest.java` — criação e atualização de respostas e rejeição de valores fora do intervalo.
 
-Os testes automatizados utilizam **H2 em memória** no perfil de testes e **não dependem do Docker**. Os testes com PostgreSQL realizados manualmente validam a integração com a base de dados real.
+O perfil de testes utiliza uma base de dados **H2 em memória**, pelo que os testes automatizados não exigem o PostgreSQL a correr. Para verificar a persistência real é necessário testar também a API com PostgreSQL.
 
-O comando `mvn clean package` também produz um artefacto **JAR** na pasta `target/`.
+`mvn clean package` executa os testes e cria o ficheiro JAR na pasta `backend/target/`.
 
-**Nota:** um build com sucesso não substitui os testes das futuras regras de perfil e Cold Start. Essas regras exigem testes próprios no Sprint 2.
+### Testar também o frontend
 
-## 7. Variáveis de ambiente
+Na pasta `frontend/`, executar:
 
-| Variável | Predefinição local | Utilização |
-|---|---|---|
-| `DB_URL` | `jdbc:postgresql://localhost:5432/studymatch` | Endereço JDBC PostgreSQL |
-| `DB_USER` | `studymatch` | Utilizador da base de dados |
-| `DB_PASSWORD` | `studymatch_dev` | Palavra-passe de desenvolvimento |
-| `SERVER_PORT` | `8080` | Porta HTTP do Spring Boot |
-| `APP_CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Origens permitidas para o frontend |
-
-**Não colocar credenciais de produção no GitHub.** A palavra-passe documentada corresponde apenas ao ambiente de demonstração local.
-
-## 8. Organização do código
-
-O backend mantém a separação de responsabilidades do Sprint 1:
-
-```text
-src/main/java/pt/studymatch/backend/
-├── config/       # CORS e dados de demonstração
-├── controller/   # Endpoints HTTP
-├── dto/          # Pedidos e respostas JSON
-├── exception/    # Tratamento de erros
-├── model/        # Entidades JPA
-├── repository/   # Acesso à base de dados
-└── service/      # Validações e regras de negócio
+```powershell
+npm.cmd install
+npm.cmd run lint
+npm.cmd run build
 ```
 
-Na Issue #13 foram acrescentados:
+O build Vite produz os ficheiros finais em `frontend/dist/`.
 
-- **Model:** `CourseUnit.java` e `AcademicRecord.java`.
-- **Repository:** `CourseUnitRepository.java` e `AcademicRecordRepository.java`.
-- **DTO:** `CourseUnitResponse.java`, `CreateAcademicRecordRequest.java` e `AcademicRecordResponse.java`.
-- **Service:** `CourseUnitService.java` e `AcademicRecordService.java`.
-- **Controller:** `CourseUnitController.java` e `AcademicRecordController.java`.
-- **Config:** atualização de `DemoDataConfig.java` com unidades curriculares de exemplo.
-- **Testes:** `AcademicRecordServiceTest.java`.
+## 10. Demonstração integrada do Sprint 2
 
-### Decisões de modelação do histórico académico
+Com PostgreSQL, Spring Boot e React em execução (`http://localhost:5173/`), demonstrar:
 
-- `CourseUnit` identifica cada unidade curricular por um ID e um código único.
-- `AcademicRecord` associa um estudante a uma unidade curricular e guarda a classificação (`BigDecimal`), o ano letivo e o semestre.
-- Um estudante pode ter vários registos académicos; uma unidade curricular pode surgir no histórico de vários estudantes.
-- A API utiliza **DTOs** para não expor diretamente entidades JPA nas respostas.
-- O histórico fica **persistido no PostgreSQL**; no futuro, será utilizado para gerar perfis de competências.
+1. **Estudante com histórico:** consultar as unidades curriculares e registar uma classificação. Verificar o cálculo das competências.
+2. **Cold Start:** num estudante sem notas, responder às perguntas e verificar as pontuações iniciais.
+3. **Transição:** adicionar uma nota numa competência anteriormente avaliada por Cold Start e confirmar que a origem passa a `ACADEMIC`.
+4. **Funcionalidade extra:** pesquisar ou filtrar estudantes por curso, ano, nome ou número; testar também a edição de dados.
+5. **Qualidade:** executar `mvn clean package` e demonstrar os testes automáticos sem falhas.
 
-## 9. Integração com o frontend
+O fluxo integrado é: **React → API Spring Boot → Services → Repositories JPA → PostgreSQL**. Os resultados devem continuar disponíveis após reiniciar a aplicação, desde que o volume da base de dados seja preservado.
 
-A integração **React → Spring Boot → PostgreSQL** já foi realizada no **Sprint 1 (Issue #7)** para a listagem e o registo de estudantes.
+## 11. Variáveis de ambiente
 
-O frontend utiliza `frontend/src/services/studentService.js` para comunicar com a API. Os endpoints do histórico académico adicionados na Issue #13 já estão disponíveis no backend, mas **a interface React para introduzir notas e apresentar perfis ainda não está concluída nesta Issue**.
+| Variável | Valor por omissão local | Utilização |
+| --- | --- | --- |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/studymatch` | Endereço JDBC PostgreSQL |
+| `DB_USER` | `studymatch` | Utilizador da base de dados |
+| `DB_PASSWORD` | `studymatch_dev` | Palavra-passe apenas de desenvolvimento |
+| `SERVER_PORT` | `8080` | Porta HTTP da API |
+| `APP_CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Origens autorizadas para o frontend |
 
-Consultar o [README principal](../README.md) para os passos de execução do frontend e do projeto completo.
+Não partilhar credenciais reais de produção nem dados pessoais em commits ou Issues.
 
-## 10. Funcionalidades previstas para as próximas tarefas do Sprint 2
+## 12. Documentação adicional e workflow
 
-A Issue #13 **não implementa** ainda:
+- [README principal — execução da aplicação completa](../README.md)
+- [Perfil académico — regras de cálculo](docs/student-profile.md)
+- [Estratégia Cold Start](docs/cold-start.md)
+- [Workflow de desenvolvimento](../WORKFLOW.md)
+- [Arquitetura do projeto](../docs/architecture.md)
+- [Modelo de domínio](../docs/DOMAIN_MODEL.md)
 
-- Edição de estudantes pela API.
-- Alteração de uma classificação já registada.
-- Gestão de competências e cálculo do perfil académico.
-- Estratégia e questionário de Cold Start.
-- Visualização do histórico e do perfil no frontend React.
-- Pesquisa/filtragem como funcionalidade adicional.
-- Formação automática de grupos (fora do âmbito do Sprint 2).
+O trabalho segue o fluxo **Issue → Branch → Implementação → Pull Request → Review → Merge**, com revisão por outro membro da equipa antes da integração na `main`.
 
-Estas funcionalidades serão desenvolvidas e integradas separadamente, com as respetivas Issues, Pull Requests e testes.
-
----
-
-**Estado desta documentação:** inclui o Sprint 1 e o trabalho verificado da **Issue #13 do Sprint 2**, sem apresentar o Sprint 2 completo como terminado.
+Referências às principais tarefas: [Issue #13](https://github.com/1230973/studymatch-g01/issues/13) (histórico académico), [Issue #15](https://github.com/1230973/studymatch-g01/issues/15) (competências e perfil), [Issue #17](https://github.com/1230973/studymatch-g01/issues/17) (Cold Start) e [Issue #21](https://github.com/1230973/studymatch-g01/issues/21) (documentação final).
