@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithAnonymousUser;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,17 +17,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import pt.studymatch.backend.repository.DegreeCourseRepository;
 import pt.studymatch.backend.repository.StudentRepository;
+import pt.studymatch.backend.repository.UserAccountRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@WithMockUser(username = "professor", roles = "TEACHER")
 class StudyMatchApiIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired StudentRepository students;
     @Autowired DegreeCourseRepository courses;
+    @Autowired UserAccountRepository userAccounts;
 
     @BeforeEach
     void cleanDatabase() {
+        userAccounts.deleteAll();
         students.deleteAll();
         courses.deleteAll();
     }
@@ -90,6 +96,32 @@ class StudyMatchApiIntegrationTest {
     void returns404ForUnknownStudent() throws Exception {
         mvc.perform(get("/api/students/NAO_EXISTE"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithAnonymousUser
+    void rejectsUnauthenticatedAccessToProtectedEndpoints() throws Exception {
+        mvc.perform(get("/api/students"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "2026001", roles = "STUDENT")
+    void forbidsStudentFromListingAllStudentsOrCreatingCourse() throws Exception {
+        mvc.perform(get("/api/students"))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(post("/api/degree-courses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"EI\",\"name\":\"Engenharia Informatica\",\"totalCredits\":180}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "2026001", roles = "STUDENT")
+    void forbidsStudentFromAccessingAnotherStudentProfile() throws Exception {
+        mvc.perform(get("/api/students/2026002/profile"))
+                .andExpect(status().isForbidden());
     }
 
     private void createCourse() throws Exception {
