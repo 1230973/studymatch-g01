@@ -71,7 +71,9 @@ public class AuthController {
                     ? account.getStudent().getStudentNumber()
                     : null;
 
-            return new AuthUserResponse(authentication.getName(), role, studentNumber);
+            String displayName = resolveDisplayName(authentication.getName(), role, account);
+
+            return new AuthUserResponse(authentication.getName(), role, studentNumber, displayName);
         } catch (org.springframework.security.core.AuthenticationException ex) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilizador ou palavra-passe incorretos.");
         }
@@ -106,6 +108,18 @@ public class AuthController {
                 ? account.getStudent().getStudentNumber()
                 : null;
 
-        return new AuthUserResponse(username, role, studentNumber);
+        String displayName = resolveDisplayName(username, role, account);
+
+        return new AuthUserResponse(username, role, studentNumber, displayName);
+    }
+
+    private String resolveDisplayName(String username, String role, UserAccount account) {
+        if (account != null && account.getStudent() != null) {
+            return account.getStudent().getName();
+        }
+        if ("ROLE_TEACHER".equals(role)) {
+            return "Docente";
+        }
+        return username;
     }
 }
