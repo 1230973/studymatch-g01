@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
+  login,
+  logout,
+  getCurrentUser,
   getStudents,
+  getStudent,
   createStudent,
   updateStudent,
   getCourseUnits,
@@ -29,16 +33,23 @@ const initialGradeForm = {
 }
 
 function App() {
+  // Estado de Autenticação
+  const [authUser, setAuthUser] = useState(null)
+  const [authChecking, setAuthChecking] = useState(true)
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' })
+  const [loginError, setLoginError] = useState('')
+  const [loggingIn, setLoggingIn] = useState(false)
+
   const [students, setStudents] = useState([])
   const [courseUnits, setCourseUnits] = useState([])
   const [questions, setQuestions] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [form, setForm] = useState(initialForm)
 
-  // Funcionalidade Extra: Pesquisa e Filtragem de estudantes
+  // Pesquisa e Filtragem de estudantes (Professor)
   const [searchTerm, setSearchTerm] = useState('')
   const [courseFilter, setCourseFilter] = useState('ALL')
   const [yearFilter, setYearFilter] = useState('ALL')
@@ -65,21 +76,10 @@ function App() {
   const [coldStartRatings, setColdStartRatings] = useState({})
   const [savingColdStart, setSavingColdStart] = useState(false)
 
-  async function loadStudents() {
-    setLoading(true)
-    setError('')
+  const isTeacher = authUser?.role === 'ROLE_TEACHER'
+  const isStudent = authUser?.role === 'ROLE_STUDENT'
 
-    try {
-      const data = await getStudents()
-      setStudents(data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function selectStudent(student) {
+  async function selectStudent(student, loadedQuestions = questions) {
     setSelectedStudent(student)
     setEditForm({
       name: student.name,
@@ -102,7 +102,7 @@ function App() {
       setProfile(profileData)
 
       const ratingsMap = {}
-      questions.forEach((q) => {
+      loadedQuestions.forEach((q) => {
         ratingsMap[q.competencyCode] = 3
       })
       answersData.forEach((ans) => {
@@ -116,42 +116,110 @@ function App() {
     }
   }
 
+  async function loadInitialDataForUser(user) {
+    setLoading(true)
+    setError('')
+
+    try {
+      const [unitsData, questionsData] = await Promise.all([
+        getCourseUnits().catch(() => []),
+        getColdStartQuestions().catch(() => []),
+      ])
+      setCourseUnits(unitsData)
+      setQuestions(questionsData)
+
+      if (unitsData.length > 0) {
+        setGradeForm((prev) => ({
+          ...prev,
+          courseUnitCode: unitsData[0].code,
+        }))
+      }
+
+      if (user.role === 'ROLE_TEACHER') {
+        const studentsData = await getStudents()
+        setStudents(studentsData)
+      } else if (user.role === 'ROLE_STUDENT' && user.studentNumber) {
+        const ownStudent = await getStudent(user.studentNumber)
+        setStudents([ownStudent])
+        await selectStudent(ownStudent, questionsData)
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     let active = true
 
-    Promise.all([
-      getStudents(),
-      getCourseUnits().catch(() => []),
-      getColdStartQuestions().catch(() => []),
-    ])
-      .then(([studentsData, unitsData, questionsData]) => {
+    getCurrentUser()
+      .then((user) => {
         if (active) {
-          setStudents(studentsData)
-          setCourseUnits(unitsData)
-          setQuestions(questionsData)
-          if (unitsData.length > 0) {
-            setGradeForm((prev) => ({
-              ...prev,
-              courseUnitCode: unitsData[0].code,
-            }))
-          }
+          setAuthUser(user)
+          loadInitialDataForUser(user)
         }
       })
-      .catch((err) => {
+      .catch(() => {
         if (active) {
-          setError(err.message)
+          setAuthUser(null)
         }
       })
       .finally(() => {
         if (active) {
-          setLoading(false)
+          setAuthChecking(false)
         }
       })
 
     return () => {
       active = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  async function handleLoginSubmit(event) {
+    event.preventDefault()
+    setLoggingIn(true)
+    setLoginError('')
+
+    try {
+      const user = await login(loginForm.username, loginForm.password)
+      setAuthUser(user)
+      setLoginForm({ username: '', password: '' })
+      await loadInitialDataForUser(user)
+    } catch (err) {
+      setLoginError(err.message)
+    } finally {
+      setLoggingIn(false)
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await logout()
+    } catch {
+      // Ignora erro ao limpar sessão
+    }
+    setAuthUser(null)
+    setSelectedStudent(null)
+    setStudents([])
+    setProfile(null)
+    setAcademicRecords([])
+  }
+
+  async function loadStudents() {
+    setLoading(true)
+    setError('')
+
+    try {
+      const data = await getStudents()
+      setStudents(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -173,7 +241,9 @@ function App() {
         enrolledYear: Number(form.enrolledYear),
       })
 
-      setSuccess('Estudante registado com sucesso!')
+      setSuccess(
+        'Estudante registado com sucesso! (Conta criada com senha inicial: aluno123)'
+      )
       setForm(initialForm)
       await loadStudents()
     } catch (err) {
@@ -285,7 +355,6 @@ function App() {
     }
   }
 
-  // Cursos e anos únicos para alimentar os filtros
   const availableCourses = Array.from(
     new Set(students.map((s) => s.degreeCourseCode))
   )
@@ -293,7 +362,6 @@ function App() {
     new Set(students.map((s) => s.enrolledYear))
   ).sort((a, b) => a - b)
 
-  // Filtragem combinada de estudantes
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -315,150 +383,273 @@ function App() {
     return 'Sem Dados (Desconhecido)'
   }
 
+  if (authChecking) {
+    return (
+      <div className="app">
+        <header className="header">
+          <h1>StudyMatch</h1>
+          <p>A verificar sessão...</p>
+        </header>
+      </div>
+    )
+  }
+
+  if (!authUser) {
+    return (
+      <div className="app">
+        <header className="header">
+          <h1>StudyMatch</h1>
+          <p>Formação inteligente de grupos académicos — Autenticação</p>
+        </header>
+
+        <main className="container">
+          <section className="login-section">
+            <h2>Iniciar Sessão</h2>
+            <p className="panel-hint">
+              Introduza as suas credenciais institucionais de Docente ou Estudante.
+            </p>
+
+            <form onSubmit={handleLoginSubmit} className="student-form">
+              <label htmlFor="username">Utilizador / N.º de Estudante</label>
+              <input
+                id="username"
+                type="text"
+                value={loginForm.username}
+                onChange={(e) =>
+                  setLoginForm((prev) => ({ ...prev, username: e.target.value }))
+                }
+                placeholder="Ex: professor ou 2026001"
+                required
+              />
+
+              <label htmlFor="password">Palavra-passe</label>
+              <input
+                id="password"
+                type="password"
+                value={loginForm.password}
+                onChange={(e) =>
+                  setLoginForm((prev) => ({ ...prev, password: e.target.value }))
+                }
+                placeholder="Introduza a palavra-passe"
+                required
+              />
+
+              <button type="submit" disabled={loggingIn}>
+                {loggingIn ? 'A autenticar...' : 'Entrar no StudyMatch'}
+              </button>
+            </form>
+
+            {loginError && (
+              <p className="error-message" role="alert">
+                {loginError}
+              </p>
+            )}
+
+            <div className="demo-credentials-box">
+              <h4>Contas de Demonstração (Perfil Demo):</h4>
+              <ul>
+                <li>
+                  <strong>Professor:</strong> utilizador <code>professor</code> |
+                  senha <code>prof123</code>
+                </li>
+                <li>
+                  <strong>Aluno 1:</strong> utilizador <code>2026001</code> |
+                  senha <code>aluno123</code>
+                </li>
+                <li>
+                  <strong>Aluno 2 (Cold Start):</strong> utilizador{' '}
+                  <code>2026002</code> | senha <code>aluno123</code>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer className="footer">
+          <p>StudyMatch — Projeto de Qualidade de Software</p>
+        </footer>
+      </div>
+    )
+  }
+
   return (
     <div className="app">
       <header className="header">
-        <h1>StudyMatch</h1>
-        <p>Formação inteligente de grupos académicos — Sprint 2</p>
+        <div className="header-bar">
+          <div>
+            <h1>StudyMatch</h1>
+            <p>Formação inteligente de grupos académicos — Sprint 3</p>
+          </div>
+          <div className="user-session-box">
+            <span className="role-pill">
+              {isTeacher ? 'PROFESSOR' : 'ALUNO'}
+            </span>
+            <span>{authUser.displayName}</span>
+            <button
+              type="button"
+              className="logout-button"
+              onClick={handleLogout}
+            >
+              Terminar Sessão
+            </button>
+          </div>
+        </div>
       </header>
 
       <main className="container">
-        <section className="welcome">
-          <h2>Subsistema de Perfil do Estudante &amp; Cold Start</h2>
-          <p>
-            Selecione qualquer estudante da lista para consultar ou editar os
-            seus dados, adicionar classificações ao histórico académico,
-            visualizar o perfil de competências calculado em tempo real ou
-            preencher o questionário inicial de Cold Start.
-          </p>
-        </section>
-
-        <section className="students-section">
-          <div className="section-header">
-            <h2>Lista de Estudantes</h2>
-            <button
-              type="button"
-              className="refresh-button"
-              onClick={loadStudents}
-              disabled={loading}
-            >
-              Atualizar lista
-            </button>
-          </div>
-
-          {/* Funcionalidade Extra: Barra de Pesquisa e Filtros */}
-          <div className="filters-bar">
-            <div className="filter-group">
-              <label htmlFor="searchFilter">Pesquisar (nome, número ou email)</label>
-              <input
-                id="searchFilter"
-                type="text"
-                placeholder="Ex: 2026001 ou João..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="filter-group">
-              <label htmlFor="courseFilter">Filtrar por Curso</label>
-              <select
-                id="courseFilter"
-                value={courseFilter}
-                onChange={(e) => setCourseFilter(e.target.value)}
-              >
-                <option value="ALL">Todos os cursos</option>
-                {availableCourses.map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filter-group">
-              <label htmlFor="yearFilter">Filtrar por Ano</label>
-              <select
-                id="yearFilter"
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-              >
-                <option value="ALL">Todos os anos</option>
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}.º Ano
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {loading && <p>A carregar estudantes...</p>}
-
-          {error && (
-            <p className="error-message" role="alert">
-              {error}
+        {isStudent && (
+          <section className="welcome">
+            <h2>Área Pessoal do Estudante ({authUser.studentNumber})</h2>
+            <p>
+              Bem-vindo, <strong>{authUser.displayName}</strong>. Nesta área pode
+              consultar os seus dados pessoais, o seu histórico de classificações,
+              o seu perfil de competências e responder ao questionário Cold Start.
             </p>
-          )}
+          </section>
+        )}
 
-          {!loading && filteredStudents.length === 0 && !error && (
-            <p>Não foram encontrados estudantes com os filtros selecionados.</p>
-          )}
+        {isTeacher && (
+          <>
+            <section className="welcome">
+              <h2>Painel de Gestão Docente</h2>
+              <p>
+                Como Professor, pode gerir estudantes, registar classificações no
+                histórico académico, consultar perfis de competências e gerir a
+                formação de grupos académicos.
+              </p>
+            </section>
 
-          {!loading && filteredStudents.length > 0 && (
-            <div className="students-list">
-              {filteredStudents.map((student) => {
-                const isSelected =
-                  selectedStudent?.studentNumber === student.studentNumber
-                return (
-                  <article
-                    className={`student-card ${isSelected ? 'selected-card' : ''}`}
-                    key={student.studentNumber}
+            <section className="students-section">
+              <div className="section-header">
+                <h2>Lista de Estudantes</h2>
+                <button
+                  type="button"
+                  className="refresh-button"
+                  onClick={loadStudents}
+                  disabled={loading}
+                >
+                  Atualizar lista
+                </button>
+              </div>
+
+              <div className="filters-bar">
+                <div className="filter-group">
+                  <label htmlFor="searchFilter">
+                    Pesquisar (nome, número ou email)
+                  </label>
+                  <input
+                    id="searchFilter"
+                    type="text"
+                    placeholder="Ex: 2026001 ou Maria..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                <div className="filter-group">
+                  <label htmlFor="courseFilter">Filtrar por Curso</label>
+                  <select
+                    id="courseFilter"
+                    value={courseFilter}
+                    onChange={(e) => setCourseFilter(e.target.value)}
                   >
-                    <h3>{student.name}</h3>
-                    <p>
-                      <strong>Número:</strong> {student.studentNumber}
-                    </p>
-                    <p>
-                      <strong>Email:</strong> {student.institutionalEmail}
-                    </p>
-                    <p>
-                      <strong>Ano:</strong> {student.enrolledYear}.º Ano
-                    </p>
-                    <p>
-                      <strong>Curso:</strong> {student.degreeCourseName} (
-                      {student.degreeCourseCode})
-                    </p>
-                    <button
-                      type="button"
-                      className="select-student-btn"
-                      onClick={() => selectStudent(student)}
-                    >
-                      {isSelected
-                        ? 'Estudante Selecionado'
-                        : 'Ver Perfil / Histórico / Cold Start'}
-                    </button>
-                  </article>
-                )
-              })}
-            </div>
-          )}
-        </section>
+                    <option value="ALL">Todos os cursos</option>
+                    {availableCourses.map((code) => (
+                      <option key={code} value={code}>
+                        {code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-        {/* Painel Completo do Estudante Selecionado */}
+                <div className="filter-group">
+                  <label htmlFor="yearFilter">Filtrar por Ano</label>
+                  <select
+                    id="yearFilter"
+                    value={yearFilter}
+                    onChange={(e) => setYearFilter(e.target.value)}
+                  >
+                    <option value="ALL">Todos os anos</option>
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}.º Ano
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {loading && <p>A carregar estudantes...</p>}
+
+              {error && (
+                <p className="error-message" role="alert">
+                  {error}
+                </p>
+              )}
+
+              {!loading && filteredStudents.length === 0 && !error && (
+                <p>Não foram encontrados estudantes com os filtros selecionados.</p>
+              )}
+
+              {!loading && filteredStudents.length > 0 && (
+                <div className="students-list">
+                  {filteredStudents.map((student) => {
+                    const isSelected =
+                      selectedStudent?.studentNumber === student.studentNumber
+                    return (
+                      <article
+                        className={`student-card ${isSelected ? 'selected-card' : ''}`}
+                        key={student.studentNumber}
+                      >
+                        <h3>{student.name}</h3>
+                        <p>
+                          <strong>Número:</strong> {student.studentNumber}
+                        </p>
+                        <p>
+                          <strong>Email:</strong> {student.institutionalEmail}
+                        </p>
+                        <p>
+                          <strong>Ano:</strong> {student.enrolledYear}.º Ano
+                        </p>
+                        <p>
+                          <strong>Curso:</strong> {student.degreeCourseName} (
+                          {student.degreeCourseCode})
+                        </p>
+                        <button
+                          type="button"
+                          className="select-student-btn"
+                          onClick={() => selectStudent(student)}
+                        >
+                          {isSelected
+                            ? 'Estudante Selecionado'
+                            : 'Ver Perfil / Histórico / Cold Start'}
+                        </button>
+                      </article>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+
+        {/* Painel do Estudante (Visível ao selecionar no Professor ou direto para o próprio Aluno) */}
         {selectedStudent && (
           <section className="student-details-section">
             <div className="details-header">
               <h2>
-                Gestão do Estudante: {selectedStudent.name} (
-                {selectedStudent.studentNumber})
+                {isTeacher ? 'Gestão do Estudante: ' : 'O Meu Perfil Académico: '}
+                {selectedStudent.name} ({selectedStudent.studentNumber})
               </h2>
-              <button
-                type="button"
-                className="close-button"
-                onClick={() => setSelectedStudent(null)}
-              >
-                Fechar Painel
-              </button>
+              {isTeacher && (
+                <button
+                  type="button"
+                  className="close-button"
+                  onClick={() => setSelectedStudent(null)}
+                >
+                  Fechar Painel
+                </button>
+              )}
             </div>
 
             {detailsLoading && <p>A carregar dados do estudante...</p>}
@@ -492,7 +683,9 @@ function App() {
                           <strong>
                             {comp.name} ({comp.code})
                           </strong>
-                          <span className={`badge badge-${comp.source.toLowerCase()}`}>
+                          <span
+                            className={`badge badge-${comp.source.toLowerCase()}`}
+                          >
                             {formatSourceBadge(comp.source)}
                           </span>
                         </div>
@@ -530,8 +723,8 @@ function App() {
               <div className="details-panel">
                 <h3>2. Questionário Cold Start (Autoavaliação)</h3>
                 <p className="panel-hint">
-                  Para estudantes sem histórico numa competência, a autoavaliação
-                  (1 a 5) gera uma pontuação provisória.
+                  Para competências sem histórico académico, a autoavaliação (1 a
+                  5) define a pontuação provisória.
                 </p>
 
                 {questions.length === 0 ? (
@@ -554,11 +747,17 @@ function App() {
                               )
                             }
                           >
-                            <option value={1}>1 — Nenhuma experiência (0 pts)</option>
+                            <option value={1}>
+                              1 — Nenhuma experiência (0 pts)
+                            </option>
                             <option value={2}>2 — Noções básicas (25 pts)</option>
-                            <option value={3}>3 — Experiência intermédia (50 pts)</option>
+                            <option value={3}>
+                              3 — Experiência intermédia (50 pts)
+                            </option>
                             <option value={4}>4 — Boa experiência (75 pts)</option>
-                            <option value={5}>5 — Experiência avançada (100 pts)</option>
+                            <option value={5}>
+                              5 — Experiência avançada (100 pts)
+                            </option>
                           </select>
                           <button
                             type="button"
@@ -610,213 +809,241 @@ function App() {
                   </table>
                 )}
 
-                <form onSubmit={handleAddGrade} className="compact-form">
-                  <h4>Registar Nova Classificação</h4>
+                {/* Apenas o Professor pode registar classificações */}
+                {isTeacher && (
+                  <form onSubmit={handleAddGrade} className="compact-form">
+                    <h4>Registar Nova Classificação</h4>
 
-                  <label htmlFor="courseUnitCode">Unidade Curricular</label>
-                  <select
-                    id="courseUnitCode"
-                    name="courseUnitCode"
-                    value={gradeForm.courseUnitCode}
-                    onChange={handleGradeChange}
-                    required
-                  >
-                    {courseUnits.length > 0 ? (
-                      courseUnits.map((cu) => (
-                        <option key={cu.code} value={cu.code}>
-                          {cu.code} — {cu.name}
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="PROG">PROG — Programacao</option>
-                        <option value="BD">BD — Bases de Dados</option>
-                        <option value="ES">ES — Engenharia de Software</option>
-                      </>
-                    )}
-                  </select>
+                    <label htmlFor="courseUnitCode">Unidade Curricular</label>
+                    <select
+                      id="courseUnitCode"
+                      name="courseUnitCode"
+                      value={gradeForm.courseUnitCode}
+                      onChange={handleGradeChange}
+                      required
+                    >
+                      {courseUnits.length > 0 ? (
+                        courseUnits.map((cu) => (
+                          <option key={cu.code} value={cu.code}>
+                            {cu.code} — {cu.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="PROG">PROG — Programacao</option>
+                          <option value="BD">BD — Bases de Dados</option>
+                          <option value="ES">ES — Engenharia de Software</option>
+                        </>
+                      )}
+                    </select>
 
-                  <label htmlFor="grade">Classificação (0 a 20)</label>
-                  <input
-                    id="grade"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="20"
-                    name="grade"
-                    value={gradeForm.grade}
-                    onChange={handleGradeChange}
-                    placeholder="Ex: 16"
-                    required
-                  />
+                    <label htmlFor="grade">Classificação (0 a 20)</label>
+                    <input
+                      id="grade"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="20"
+                      name="grade"
+                      value={gradeForm.grade}
+                      onChange={handleGradeChange}
+                      placeholder="Ex: 16"
+                      required
+                    />
 
-                  <label htmlFor="academicYear">Ano Letivo (AAAA/AAAA)</label>
-                  <input
-                    id="academicYear"
-                    type="text"
-                    name="academicYear"
-                    value={gradeForm.academicYear}
-                    onChange={handleGradeChange}
-                    placeholder="Ex: 2025/2026"
-                    required
-                  />
+                    <label htmlFor="academicYear">Ano Letivo (AAAA/AAAA)</label>
+                    <input
+                      id="academicYear"
+                      type="text"
+                      name="academicYear"
+                      value={gradeForm.academicYear}
+                      onChange={handleGradeChange}
+                      placeholder="Ex: 2025/2026"
+                      required
+                    />
 
-                  <label htmlFor="semester">Semestre</label>
-                  <select
-                    id="semester"
-                    name="semester"
-                    value={gradeForm.semester}
-                    onChange={handleGradeChange}
-                    required
-                  >
-                    <option value={1}>1.º Semestre</option>
-                    <option value={2}>2.º Semestre</option>
-                  </select>
+                    <label htmlFor="semester">Semestre</label>
+                    <select
+                      id="semester"
+                      name="semester"
+                      value={gradeForm.semester}
+                      onChange={handleGradeChange}
+                      required
+                    >
+                      <option value={1}>1.º Semestre</option>
+                      <option value={2}>2.º Semestre</option>
+                    </select>
 
-                  <button type="submit" disabled={savingGrade}>
-                    {savingGrade ? 'A adicionar...' : 'Adicionar Classificação'}
-                  </button>
-                </form>
+                    <button type="submit" disabled={savingGrade}>
+                      {savingGrade ? 'A adicionar...' : 'Adicionar Classificação'}
+                    </button>
+                  </form>
+                )}
               </div>
 
-              {/* 4. Editar Dados do Estudante */}
+              {/* 4. Dados Pessoais (Edição para Professor / Consulta para Aluno) */}
               <div className="details-panel">
-                <h3>4. Editar Dados do Estudante</h3>
-                <form onSubmit={handleUpdateStudent} className="compact-form">
-                  <label htmlFor="editName">Nome completo</label>
-                  <input
-                    id="editName"
-                    type="text"
-                    name="name"
-                    value={editForm.name}
-                    onChange={handleEditChange}
-                    required
-                    maxLength={150}
-                  />
+                <h3>
+                  {isTeacher
+                    ? '4. Editar Dados do Estudante'
+                    : '4. Os Meus Dados Institucionais'}
+                </h3>
 
-                  <label htmlFor="editEmail">Email institucional</label>
-                  <input
-                    id="editEmail"
-                    type="email"
-                    name="institutionalEmail"
-                    value={editForm.institutionalEmail}
-                    onChange={handleEditChange}
-                    required
-                    maxLength={200}
-                  />
+                {isTeacher ? (
+                  <form onSubmit={handleUpdateStudent} className="compact-form">
+                    <label htmlFor="editName">Nome completo</label>
+                    <input
+                      id="editName"
+                      type="text"
+                      name="name"
+                      value={editForm.name}
+                      onChange={handleEditChange}
+                      required
+                      maxLength={150}
+                    />
 
-                  <label htmlFor="editYear">Ano de inscrição</label>
-                  <input
-                    id="editYear"
-                    type="number"
-                    name="enrolledYear"
-                    min="1"
-                    max="10"
-                    value={editForm.enrolledYear}
-                    onChange={handleEditChange}
-                    required
-                  />
+                    <label htmlFor="editEmail">Email institucional</label>
+                    <input
+                      id="editEmail"
+                      type="email"
+                      name="institutionalEmail"
+                      value={editForm.institutionalEmail}
+                      onChange={handleEditChange}
+                      required
+                      maxLength={200}
+                    />
 
-                  <label htmlFor="editCourse">Código do curso</label>
-                  <input
-                    id="editCourse"
-                    type="text"
-                    name="degreeCourseCode"
-                    value={editForm.degreeCourseCode}
-                    onChange={handleEditChange}
-                    required
-                  />
+                    <label htmlFor="editYear">Ano de inscrição</label>
+                    <input
+                      id="editYear"
+                      type="number"
+                      name="enrolledYear"
+                      min="1"
+                      max="10"
+                      value={editForm.enrolledYear}
+                      onChange={handleEditChange}
+                      required
+                    />
 
-                  <button type="submit" disabled={savingEdit}>
-                    {savingEdit ? 'A atualizar...' : 'Guardar Alterações'}
-                  </button>
-                </form>
+                    <label htmlFor="editCourse">Código do curso</label>
+                    <input
+                      id="editCourse"
+                      type="text"
+                      name="degreeCourseCode"
+                      value={editForm.degreeCourseCode}
+                      onChange={handleEditChange}
+                      required
+                    />
+
+                    <button type="submit" disabled={savingEdit}>
+                      {savingEdit ? 'A atualizar...' : 'Guardar Alterações'}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="student-readonly-info">
+                    <p>
+                      <strong>Número de Estudante:</strong>{' '}
+                      {selectedStudent.studentNumber}
+                    </p>
+                    <p>
+                      <strong>Nome Completo:</strong> {selectedStudent.name}
+                    </p>
+                    <p>
+                      <strong>Email Institucional:</strong>{' '}
+                      {selectedStudent.institutionalEmail}
+                    </p>
+                    <p>
+                      <strong>Ano Curricular:</strong>{' '}
+                      {selectedStudent.enrolledYear}.º Ano
+                    </p>
+                    <p>
+                      <strong>Curso:</strong> {selectedStudent.degreeCourseName}{' '}
+                      ({selectedStudent.degreeCourseCode})
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </section>
         )}
 
-        <section className="register-section">
-          <h2>Registar Novo Estudante</h2>
+        {/* Apenas o Professor pode registar novos estudantes */}
+        {isTeacher && (
+          <section className="register-section">
+            <h2>Registar Novo Estudante</h2>
 
-          <form onSubmit={handleSubmit} className="student-form">
-            <label htmlFor="studentNumber">Número de estudante</label>
-            <input
-              id="studentNumber"
-              type="text"
-              name="studentNumber"
-              value={form.studentNumber}
-              onChange={handleChange}
-              required
-              maxLength={30}
-              placeholder="Ex: 2026002"
-            />
+            <form onSubmit={handleSubmit} className="student-form">
+              <label htmlFor="studentNumber">Número de estudante</label>
+              <input
+                id="studentNumber"
+                type="text"
+                name="studentNumber"
+                value={form.studentNumber}
+                onChange={handleChange}
+                required
+                maxLength={30}
+                placeholder="Ex: 2026003"
+              />
 
-            <label htmlFor="name">Nome completo</label>
-            <input
-              id="name"
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              maxLength={150}
-              placeholder="Ex: João Silva"
-            />
+              <label htmlFor="name">Nome completo</label>
+              <input
+                id="name"
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                required
+                maxLength={150}
+                placeholder="Ex: João Silva"
+              />
 
-            <label htmlFor="institutionalEmail">Email institucional</label>
-            <input
-              id="institutionalEmail"
-              type="email"
-              name="institutionalEmail"
-              value={form.institutionalEmail}
-              onChange={handleChange}
-              required
-              maxLength={200}
-              placeholder="Ex: joao@example.org"
-            />
+              <label htmlFor="institutionalEmail">Email institucional</label>
+              <input
+                id="institutionalEmail"
+                type="email"
+                name="institutionalEmail"
+                value={form.institutionalEmail}
+                onChange={handleChange}
+                required
+                maxLength={200}
+                placeholder="Ex: joao@example.org"
+              />
 
-            <label htmlFor="enrolledYear">Ano de inscrição</label>
-            <input
-              id="enrolledYear"
-              type="number"
-              name="enrolledYear"
-              min="1"
-              max="10"
-              value={form.enrolledYear}
-              onChange={handleChange}
-              required
-            />
+              <label htmlFor="enrolledYear">Ano de inscrição</label>
+              <input
+                id="enrolledYear"
+                type="number"
+                name="enrolledYear"
+                min="1"
+                max="10"
+                value={form.enrolledYear}
+                onChange={handleChange}
+                required
+              />
 
-            <label htmlFor="degreeCourseCode">Código do curso</label>
-            <input
-              id="degreeCourseCode"
-              type="text"
-              name="degreeCourseCode"
-              value={form.degreeCourseCode}
-              onChange={handleChange}
-              required
-              placeholder="EI"
-            />
+              <label htmlFor="degreeCourseCode">Código do curso</label>
+              <input
+                id="degreeCourseCode"
+                type="text"
+                name="degreeCourseCode"
+                value={form.degreeCourseCode}
+                onChange={handleChange}
+                required
+                placeholder="EI"
+              />
 
-            <button type="submit" disabled={saving}>
-              {saving ? 'A guardar...' : 'Registar estudante'}
-            </button>
-          </form>
+              <button type="submit" disabled={saving}>
+                {saving ? 'A guardar...' : 'Registar estudante'}
+              </button>
+            </form>
 
-          {success && (
-            <p className="success-message" role="status">
-              {success}
-            </p>
-          )}
-        </section>
-
-        <section className="status">
-          <h2>Integração Full-Stack — Sprint 2</h2>
-          <p>Frontend: React + Vite (Pesquisa/Filtro, Histórico, Perfil e Cold Start)</p>
-          <p>Backend: Spring Boot API REST (Java 17)</p>
-          <p>Persistência: PostgreSQL + Spring Data JPA</p>
-        </section>
+            {success && (
+              <p className="success-message" role="status">
+                {success}
+              </p>
+            )}
+          </section>
+        )}
       </main>
 
       <footer className="footer">

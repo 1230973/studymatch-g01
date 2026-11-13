@@ -17,20 +17,26 @@ import jakarta.validation.Valid;
 import pt.studymatch.backend.dto.CreateStudentRequest;
 import pt.studymatch.backend.dto.StudentResponse;
 import pt.studymatch.backend.dto.UpdateStudentRequest;
+import pt.studymatch.backend.service.AccessControlService;
 import pt.studymatch.backend.service.StudentService;
 
 @RestController
 @RequestMapping("/api/students")
 public class StudentController {
     private final StudentService service;
+    private final AccessControlService accessControl;
 
-    public StudentController(StudentService service) { this.service = service; }
+    public StudentController(StudentService service, AccessControlService accessControl) {
+        this.service = service;
+        this.accessControl = accessControl;
+    }
 
     @GetMapping
     public List<StudentResponse> list() { return service.list(); }
 
     @GetMapping("/{studentNumber}")
     public StudentResponse find(@PathVariable String studentNumber) {
+        accessControl.checkStudentAccess(studentNumber);
         return service.find(studentNumber);
     }
 
