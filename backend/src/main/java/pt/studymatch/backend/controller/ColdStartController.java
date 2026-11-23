@@ -1,4 +1,3 @@
-
 package pt.studymatch.backend.controller;
 
 import java.util.List;
@@ -12,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import pt.studymatch.backend.dto.ColdStartAnswerRequest;
 import pt.studymatch.backend.dto.ColdStartAnswerResponse;
+import pt.studymatch.backend.service.AccessControlService;
 import pt.studymatch.backend.service.ColdStartService;
 
 @RestController
@@ -19,9 +19,13 @@ import pt.studymatch.backend.service.ColdStartService;
 public class ColdStartController {
 
     private final ColdStartService coldStartService;
+    private final AccessControlService accessControl;
 
-    public ColdStartController(ColdStartService coldStartService) {
+    public ColdStartController(
+            ColdStartService coldStartService,
+            AccessControlService accessControl) {
         this.coldStartService = coldStartService;
+        this.accessControl = accessControl;
     }
 
     // Consultar as respostas do estudante
@@ -29,6 +33,7 @@ public class ColdStartController {
     public List<ColdStartAnswerResponse> getAnswers(
             @PathVariable String studentNumber) {
 
+        accessControl.checkStudentAccess(studentNumber);
         return coldStartService.getAnswers(studentNumber);
     }
 
@@ -38,6 +43,7 @@ public class ColdStartController {
             @PathVariable String studentNumber,
             @RequestBody ColdStartAnswerRequest request) {
 
+        accessControl.checkStudentAccess(studentNumber);
         return coldStartService.saveAnswer(studentNumber, request);
     }
 }

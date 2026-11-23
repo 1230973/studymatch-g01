@@ -1,6 +1,19 @@
 const BASE_URL = 'http://localhost:8080/api'
 const STUDENTS_URL = `${BASE_URL}/students`
 
+// Função auxiliar para pedidos com sessão (cookies HttpOnly)
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+  })
+  return handleResponse(response)
+}
+
 // Função que trata as respostas da API
 async function handleResponse(response) {
   if (!response.ok) {
@@ -13,104 +26,107 @@ async function handleResponse(response) {
       // Mantém a mensagem predefinida
     }
 
-    throw new Error(message)
+    const err = new Error(message)
+    err.status = response.status
+    throw err
   }
 
   return response.json()
 }
 
-// Consultar todos os estudantes
-export async function getStudents() {
-  const response = await fetch(STUDENTS_URL)
-  return handleResponse(response)
+// Autenticação e Sessão
+export async function login(username, password) {
+  return apiFetch(`${BASE_URL}/auth/login`, {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  })
 }
 
-// Registar um novo estudante
-export async function createStudent(student) {
-  const response = await fetch(STUDENTS_URL, {
+export async function logout() {
+  return apiFetch(`${BASE_URL}/auth/logout`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+  })
+}
+
+export async function getCurrentUser() {
+  return apiFetch(`${BASE_URL}/auth/me`)
+}
+
+// Consultar todos os estudantes (Apenas Professor)
+export async function getStudents() {
+  return apiFetch(STUDENTS_URL)
+}
+
+// Consultar um estudante específico (Professor ou o próprio Aluno)
+export async function getStudent(studentNumber) {
+  return apiFetch(`${STUDENTS_URL}/${encodeURIComponent(studentNumber)}`)
+}
+
+// Registar um novo estudante (Apenas Professor)
+export async function createStudent(student) {
+  return apiFetch(STUDENTS_URL, {
+    method: 'POST',
     body: JSON.stringify(student),
   })
-  return handleResponse(response)
 }
 
-// Atualizar dados de um estudante existente
+// Atualizar dados de um estudante existente (Apenas Professor)
 export async function updateStudent(studentNumber, studentData) {
-  const response = await fetch(`${STUDENTS_URL}/${encodeURIComponent(studentNumber)}`, {
+  return apiFetch(`${STUDENTS_URL}/${encodeURIComponent(studentNumber)}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify(studentData),
   })
-  return handleResponse(response)
 }
 
 // Listar unidades curriculares disponíveis
 export async function getCourseUnits() {
-  const response = await fetch(`${BASE_URL}/course-units`)
-  return handleResponse(response)
+  return apiFetch(`${BASE_URL}/course-units`)
 }
 
 // Consultar histórico académico de um estudante
 export async function getAcademicRecords(studentNumber) {
-  const response = await fetch(
+  return apiFetch(
     `${STUDENTS_URL}/${encodeURIComponent(studentNumber)}/academic-records`
   )
-  return handleResponse(response)
 }
 
-// Registar uma nova classificação no histórico académico
+// Registar uma nova classificação no histórico académico (Apenas Professor)
 export async function createAcademicRecord(studentNumber, record) {
-  const response = await fetch(
+  return apiFetch(
     `${STUDENTS_URL}/${encodeURIComponent(studentNumber)}/academic-records`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(record),
     }
   )
-  return handleResponse(response)
 }
 
 // Consultar perfil de competências calculado do estudante
 export async function getStudentProfile(studentNumber) {
-  const response = await fetch(
+  return apiFetch(
     `${STUDENTS_URL}/${encodeURIComponent(studentNumber)}/profile`
   )
-  return handleResponse(response)
 }
 
 // Consultar perguntas do questionário Cold Start
 export async function getColdStartQuestions() {
-  const response = await fetch(`${BASE_URL}/cold-start/questions`)
-  return handleResponse(response)
+  return apiFetch(`${BASE_URL}/cold-start/questions`)
 }
 
 // Consultar respostas Cold Start já guardadas para um estudante
 export async function getColdStartAnswers(studentNumber) {
-  const response = await fetch(
+  return apiFetch(
     `${STUDENTS_URL}/${encodeURIComponent(studentNumber)}/cold-start`
   )
-  return handleResponse(response)
 }
 
 // Guardar ou atualizar uma resposta Cold Start de um estudante
 export async function saveColdStartAnswer(studentNumber, answer) {
-  const response = await fetch(
+  return apiFetch(
     `${STUDENTS_URL}/${encodeURIComponent(studentNumber)}/cold-start`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(answer),
     }
   )
-  return handleResponse(response)
 }

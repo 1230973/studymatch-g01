@@ -1,4 +1,3 @@
-
 package pt.studymatch.backend.controller;
 
 import java.util.List;
@@ -14,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import pt.studymatch.backend.dto.AcademicRecordResponse;
 import pt.studymatch.backend.dto.CreateAcademicRecordRequest;
+import pt.studymatch.backend.service.AccessControlService;
 import pt.studymatch.backend.service.AcademicRecordService;
 
 @RestController
@@ -21,9 +21,13 @@ import pt.studymatch.backend.service.AcademicRecordService;
 public class AcademicRecordController {
 
     private final AcademicRecordService academicRecordService;
+    private final AccessControlService accessControl;
 
-    public AcademicRecordController(AcademicRecordService academicRecordService) {
+    public AcademicRecordController(
+            AcademicRecordService academicRecordService,
+            AccessControlService accessControl) {
         this.academicRecordService = academicRecordService;
+        this.accessControl = accessControl;
     }
 
     // Consultar o historico academico
@@ -31,6 +35,7 @@ public class AcademicRecordController {
     public List<AcademicRecordResponse> getHistory(
             @PathVariable String studentNumber) {
 
+        accessControl.checkStudentAccess(studentNumber);
         return academicRecordService.getHistory(studentNumber);
     }
 

@@ -3,6 +3,7 @@ package pt.studymatch.backend.service;
 import java.util.List;
 import java.util.Locale;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,17 +14,27 @@ import pt.studymatch.backend.exception.DuplicateResourceException;
 import pt.studymatch.backend.exception.ResourceNotFoundException;
 import pt.studymatch.backend.model.DegreeCourse;
 import pt.studymatch.backend.model.Student;
+import pt.studymatch.backend.model.UserAccount;
 import pt.studymatch.backend.repository.DegreeCourseRepository;
 import pt.studymatch.backend.repository.StudentRepository;
+import pt.studymatch.backend.repository.UserAccountRepository;
 
 @Service
 public class StudentService {
     private final StudentRepository students;
     private final DegreeCourseRepository courses;
+    private final UserAccountRepository userAccounts;
+    private final PasswordEncoder passwordEncoder;
 
-    public StudentService(StudentRepository students, DegreeCourseRepository courses) {
+    public StudentService(
+            StudentRepository students,
+            DegreeCourseRepository courses,
+            UserAccountRepository userAccounts,
+            PasswordEncoder passwordEncoder) {
         this.students = students;
         this.courses = courses;
+        this.userAccounts = userAccounts;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional(readOnly = true)
@@ -56,6 +67,16 @@ public class StudentService {
 
         Student student = students.save(new Student(number, request.name().trim(), email,
                 request.enrolledYear(), course));
+
+        if (!userAccounts.existsByUsernameIgnoreCase(number)) {
+            userAccounts.save(new UserAccount(
+                    number,
+                    passwordEncoder.encode("aluno123"),
+                    "ROLE_STUDENT",
+                    student
+            ));
+        }
+
         return toResponse(student);
     }
 
