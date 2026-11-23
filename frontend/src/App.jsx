@@ -15,6 +15,8 @@ import {
   getColdStartAnswers,
   saveColdStartAnswer,
 } from './services/studentService'
+import GroupFormationPanel from './components/GroupFormationPanel'
+import MyGroupsPanel from './components/MyGroupsPanel'
 import './App.css'
 
 const initialForm = {
@@ -498,14 +500,18 @@ function App() {
 
       <main className="container">
         {isStudent && (
-          <section className="welcome">
-            <h2>Área Pessoal do Estudante ({authUser.studentNumber})</h2>
-            <p>
-              Bem-vindo, <strong>{authUser.displayName}</strong>. Nesta área pode
-              consultar os seus dados pessoais, o seu histórico de classificações,
-              o seu perfil de competências e responder ao questionário Cold Start.
-            </p>
-          </section>
+          <>
+            <section className="welcome">
+              <h2>Área Pessoal do Estudante ({authUser.studentNumber})</h2>
+              <p>
+                Bem-vindo, <strong>{authUser.displayName}</strong>. Nesta área pode
+                consultar os seus dados pessoais, o seu histórico de classificações,
+                o seu perfil de competências, responder ao questionário Cold Start e
+                consultar os grupos em que foi integrado.
+              </p>
+            </section>
+            <MyGroupsPanel />
+          </>
         )}
 
         {isTeacher && (
@@ -967,9 +973,12 @@ function App() {
           </section>
         )}
 
-        {/* Apenas o Professor pode registar novos estudantes */}
+        {/* Apenas o Professor pode registar novos estudantes e gerir grupos */}
         {isTeacher && (
-          <section className="register-section">
+          <>
+            <GroupFormationPanel students={students} />
+
+            <section className="register-section">
             <h2>Registar Novo Estudante</h2>
 
             <form onSubmit={handleSubmit} className="student-form">
@@ -1043,6 +1052,7 @@ function App() {
               </p>
             )}
           </section>
+          </>
         )}
       </main>
 
